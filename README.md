@@ -9,3 +9,6 @@
 - [03_load_json_config](03_load_json_config/)
   - JSON形式の設定ファイル(`config.json`)を読み込む練習
   - RaspberryPi pico wで動作不可、PCでのPythonでは動作確認済み。
+- [04_test_ambient](04_test_ambient/)
+  - Ambientへのデータ送信テスト
+  - RaspberryPi pico Wで動作不可、PCでのPythonでは動作確認済み。
