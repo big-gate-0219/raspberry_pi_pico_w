@@ -16,3 +16,5 @@
   - Ambientへのデータ送信テスト
   - データ送信には、urequestを使用する
   - RaspberyPi Pico Wを動作可能（設定ファイルをPythonで記述)
+- [06_bme280](06_bme280/)
+  - BME280を使って温度、湿度、気圧を計測する
