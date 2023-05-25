@@ -12,3 +12,7 @@
 - [04_test_ambient](04_test_ambient/)
   - Ambientへのデータ送信テスト
   - RaspberryPi pico Wで動作不可、PCでのPythonでは動作確認済み。
+- [05_test_urequest_ambient](05_test_urequest_ambient/)
+  - Ambientへのデータ送信テスト
+  - データ送信には、urequestを使用する
+  - RaspberyPi Pico Wを動作可能（設定ファイルをPythonで記述)
