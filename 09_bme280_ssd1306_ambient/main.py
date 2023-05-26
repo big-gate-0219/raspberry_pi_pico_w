@@ -17,21 +17,39 @@ WIDTH = 128
 HEIGHT = 64
 
 #####################
-## 
+## WiFiに接続する
 #####################
-def connect(ssid, password):
+def connect(display, ssid, password):
+    """WiFiに接続する
+    Args:
+        display : SSD1306情報
+        ssid: 接続対象WifiのSSID
+        password: 接続対象Wifiのパスワード
+    Returns:
+        string : 接続した時のIPアドレス
+        None : 接続失敗
+    """
+    display.fill(0)
+    display.text("WiFi Connecting", 2, 2, True)
+    display.fill_rect(0, 15, 121, 12, True)
+    display.show()
+
     pico_led.off()
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
     wlan.connect(ssid, password)
-    print('connecting', end='')
-    while not wlan.isconnected():
+    
+    for i in range(5):
         pico_led.toggle()
-        print('.', end='')
+        display.fill_rect(120 - i - 2, 16, 2, 10, False)
+        display.show()
+        if wlan.isconnected():
+            pico_led.off()
+            return wlan.ifconfig()[0]
         time.sleep(1)
-    ip = wlan.ifconfig()[0]
+    
     pico_led.off()
-    return ip
+    return None
 
 #####################
 # BME280の補正済データから気温を取得する
@@ -136,40 +154,45 @@ def display_thermo_hygrometer(display, temp, humidity, pressure, feeling):
 #####################
 # Main Logic
 #####################
-## WIFIに接続
-connect(config.wifi_ssid, config.wifi_pass)
-
 ## センサーに接続
 i2c = I2C(0, sda = SDA_PIN, scl = SCL_PIN)
 bme280 = BME280(i2c = i2c)
 ssd1306 = SSD1306_I2C(WIDTH, HEIGHT, i2c)
 
-## Setting Ambient Information
-url = 'http://ambidata.io/api/v2/channels/'+config.ambient_chid+'/data'
-head = {'Content-Type':'application/json'}
-body = {'writeKey':config.ambient_wkey, 'amdient_tag':0.0}
-communication_count = 0 # ambientに通信するタイミング用カウント
+## WIFIに接続
+ip = connect(ssd1306, config.wifi_ssid, config.wifi_pass)
 
-## 定期的に温湿度気圧を計測
-while True:
-    bme280_result = bme280.read_compensated_data()
-    temperature = get_temperature(bme280_result)
-    pressure = get_pressure(bme280_result)
-    humidity = get_humidity(bme280_result)
-    discomfort_index = get_discomfort_index(temperature, humidity)
-    feeling = get_feeling(discomfort_index)
-    display_thermo_hygrometer(ssd1306, temperature, humidity, pressure, feeling)
-    communication_count = communication_count + 1
-    if communication_count > 10:
-        communication_count = 0
-        pico_led.on()
-        body['d1'] = temperature
-        body['d2'] = humidity
-        body['d3'] = pressure
-        body['d4'] = discomfort_index
-        body['d5'] = feeling
-        res = urequests.post(url, json=body, headers=head)
-        print(' HTTP Status=', res.status_code)
-        res.close()
-        pico_led.off()
-    time.sleep(1)
+if ip is not None:
+    ## Setting Ambient Information
+    url = 'http://ambidata.io/api/v2/channels/'+config.ambient_chid+'/data'
+    head = {'Content-Type':'application/json'}
+    body = {'writeKey':config.ambient_wkey, 'amdient_tag':0.0}
+    communication_count = 0 # ambientに通信するタイミング用カウント
+
+    ## 定期的に温湿度気圧を計測
+    while True:
+        bme280_result = bme280.read_compensated_data()
+        temperature = get_temperature(bme280_result)
+        pressure = get_pressure(bme280_result)
+        humidity = get_humidity(bme280_result)
+        discomfort_index = get_discomfort_index(temperature, humidity)
+        feeling = get_feeling(discomfort_index)
+        display_thermo_hygrometer(ssd1306, temperature, humidity, pressure, feeling)
+        communication_count = communication_count + 1
+        if communication_count > 10:
+            communication_count = 0
+            pico_led.on()
+            body['d1'] = temperature
+            body['d2'] = humidity
+            body['d3'] = pressure
+            body['d4'] = discomfort_index
+            body['d5'] = feeling
+            res = urequests.post(url, json=body, headers=head)
+            print(' HTTP Status=', res.status_code)
+            res.close()
+            pico_led.off()
+        time.sleep(1)
+else:
+    ssd1306.fill(0)
+    ssd1306.text("NotConnect WiFi", 2, 2, True)
+    ssd1306.show()
