@@ -39,7 +39,7 @@ def connect(display, ssid, password):
     wlan.active(True)
     wlan.connect(ssid, password)
     
-    for i in range(5):
+    for i in range(60):
         pico_led.toggle()
         display.fill_rect(120 - i - 2, 16, 2, 10, False)
         display.show()
@@ -73,7 +73,7 @@ def get_pressure(bme280_compensated_data):
     Returns:
         float: BME280の補正済データから気圧した気温
     """
-    return bme280_result[1] / 25600
+    return bme280_compensated_data[1] / 25600
 
 # BME280の補正済データから湿度を取得する
 def get_humidity(bme280_compensated_data):
@@ -83,7 +83,7 @@ def get_humidity(bme280_compensated_data):
     Returns:
         float: BME280の補正済データから湿度した気温
     """
-    return bme280_result[2] / 1024
+    return bme280_compensated_data[2] / 1024
 
 #####################
 # 温度と湿度から不快指数を取得する
@@ -152,17 +152,14 @@ def display_thermo_hygrometer(display, temp, humidity, pressure, feeling):
     display.show()
 
 #####################
-# Main Logic
+# 温湿度気圧情報表示機能を実行
 #####################
-## センサーに接続
-i2c = I2C(0, sda = SDA_PIN, scl = SCL_PIN)
-bme280 = BME280(i2c = i2c)
-ssd1306 = SSD1306_I2C(WIDTH, HEIGHT, i2c)
-
-## WIFIに接続
-ip = connect(ssd1306, config.wifi_ssid, config.wifi_pass)
-
-if ip is not None:
+def do_thermo_hygrometer(display, bme280):
+    """温湿度気圧情報を画面に表示する
+    Args:
+        display : SSD1306情報
+        bme280: bme280の接続情報
+    """
     ## Setting Ambient Information
     url = 'http://ambidata.io/api/v2/channels/'+config.ambient_chid+'/data'
     head = {'Content-Type':'application/json'}
@@ -177,22 +174,42 @@ if ip is not None:
         humidity = get_humidity(bme280_result)
         discomfort_index = get_discomfort_index(temperature, humidity)
         feeling = get_feeling(discomfort_index)
-        display_thermo_hygrometer(ssd1306, temperature, humidity, pressure, feeling)
+        display_thermo_hygrometer(display, temperature, humidity, pressure, feeling)
         communication_count = communication_count + 1
         if communication_count > 10:
             communication_count = 0
             pico_led.on()
-            body['d1'] = temperature
-            body['d2'] = humidity
-            body['d3'] = pressure
-            body['d4'] = discomfort_index
-            body['d5'] = feeling
+            body = {'d1': temperature, 'd2': humidity, 'd3': pressure, 'd4': discomfort_index, 'd5': feeling}
             res = urequests.post(url, json=body, headers=head)
-            print(' HTTP Status=', res.status_code)
             res.close()
             pico_led.off()
         time.sleep(1)
+        
+#####################
+# WiFi接続が出来なかったことを画面に表示する
+#####################
+def display_not_connect_wifi(display):
+    """WiFi接続が出来なかったことを画面に表示する
+    Args:
+        display : SSD1306情報
+    """
+    display.fill(0)
+    display.text("NotConnect WiFi", 2, 2, True)
+    display.show()
+    
+#####################
+# Main Logic
+#####################
+## センサーに接続
+i2c = I2C(0, sda = SDA_PIN, scl = SCL_PIN)
+bme280 = BME280(i2c = i2c)
+ssd1306 = SSD1306_I2C(WIDTH, HEIGHT, i2c)
+
+## WIFIに接続
+ip = connect(ssd1306, config.wifi_ssid, config.wifi_pass)
+
+## WiFi接続成功したら音湿度気圧表示を行う
+if ip is not None:
+    do_thermo_hygrometer(ssd1306, bme280)
 else:
-    ssd1306.fill(0)
-    ssd1306.text("NotConnect WiFi", 2, 2, True)
-    ssd1306.show()
+    display_not_connect_wifi(ssd1306)
