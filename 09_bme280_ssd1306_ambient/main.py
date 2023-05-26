@@ -28,9 +28,7 @@ THRESHOLDS = [
     (85, 1000, "Too hot")
 ]
 
-#####################
-## WiFiに接続する
-#####################
+
 def connect(display, ssid, password):
     """WiFiに接続する
     Args:
@@ -50,7 +48,7 @@ def connect(display, ssid, password):
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
     wlan.connect(ssid, password)
-    
+
     for i in range(60):
         pico_led.toggle()
         display.fill_rect(120 - i - 2, 16, 2, 10, False)
@@ -59,13 +57,11 @@ def connect(display, ssid, password):
             pico_led.off()
             return wlan.ifconfig()[0]
         time.sleep(1)
-    
+
     pico_led.off()
     return None
 
-#####################
-# BME280の補正済データから気温を取得する
-#####################
+
 def get_temperature(bme280_compensated_data):
     """BME280の補正済データから気温を取得する
     Args:
@@ -75,9 +71,7 @@ def get_temperature(bme280_compensated_data):
     """
     return bme280_compensated_data[0] / 100
 
-#####################
-# BME280の補正済データから気圧を取得する
-#####################
+
 def get_pressure(bme280_compensated_data):
     """BME280の補正済データから気圧を取得する
     Args:
@@ -87,7 +81,7 @@ def get_pressure(bme280_compensated_data):
     """
     return bme280_compensated_data[1] / 25600
 
-# BME280の補正済データから湿度を取得する
+
 def get_humidity(bme280_compensated_data):
     """BME280の補正済データから湿度を取得する
     Args:
@@ -97,9 +91,7 @@ def get_humidity(bme280_compensated_data):
     """
     return bme280_compensated_data[2] / 1024
 
-#####################
-# 温度と湿度から不快指数を取得する
-#####################
+
 def get_discomfort_index(temp, humidity):
     """温度と湿度から不快指数を取得する
     Args:
@@ -108,9 +100,9 @@ def get_discomfort_index(temp, humidity):
     Returns:
         float: 不快指数
     """
-    return 0.81 * temp + 0.01*humidity*(0.99 * temp - 14.3) + 46.3
+    return 0.81 * temp + 0.01 * humidity * (0.99 * temp - 14.3) + 46.3
 
-# 不快指数から人が感じる感覚を取得する
+
 def get_feeling(discomfort_index):
     """不快指数から人が感じる感覚を取得する
     Args:
@@ -125,9 +117,6 @@ def get_feeling(discomfort_index):
     return "Unknown"
 
 
-#####################
-# 温湿度気圧情報を画面に表示する
-#####################
 def display_thermo_hygrometer(display, data):
     """温湿度気圧情報を画面に表示する
     Args:
@@ -141,7 +130,7 @@ def display_thermo_hygrometer(display, data):
     """
     now = time.localtime()
     display.fill(0)
-    display.text("{:02d}/{:02d} {:02d}:{:02d}:{:02d}".format(now[1], now[2], now[3], now[4],now[5]), 2, 2, True)
+    display.text("{:02d}/{:02d} {:02d}:{:02d}:{:02d}".format(now[1], now[2], now[3], now[4], now[5]), 2, 2, True)
     display.hline(0, 12, 128, True)
     display.vline(70, 12, 14, True)
     display.hline(0, 26, 128, True)
@@ -151,6 +140,7 @@ def display_thermo_hygrometer(display, data):
     display.text("{:.01f}hPa".format(data.pressure), 2, 30, True)
     display.text(data.feeling, 2, 46, True)
     display.show()
+
 
 class ThermoHygrometerData:
     """
@@ -163,6 +153,7 @@ class ThermoHygrometerData:
         self.pressure = pressure
         self.discomfort_index = discomfort_index
         self.feeling = feeling
+
 
 def get_thermo_hygrometer_data(bme280_sensor):
     """
@@ -183,6 +174,7 @@ def get_thermo_hygrometer_data(bme280_sensor):
     feeling = get_feeling(discomfort_index)
     return ThermoHygrometerData(temperature, humidity, pressure, discomfort_index, feeling)
 
+
 def post_data_to_ambient(url, headers, body):
     """
     Ambientにデータをポストする関数
@@ -195,7 +187,8 @@ def post_data_to_ambient(url, headers, body):
     """
     res = urequests.post(url, json=body, headers=headers)
     res.close()
-    
+
+
 def send_data_to_ambient(url, headers, data, ambient_wkey, ambient_tag):
     """
     Ambientにデータを送信する関数
@@ -208,9 +201,17 @@ def send_data_to_ambient(url, headers, data, ambient_wkey, ambient_tag):
         ambient_tag (float): Ambientのタグ
 
     """
-    body = {'writeKey': ambient_wkey, 'ambient_tag': ambient_tag, 'd1': data.temperature,
-            'd2': data.humidity, 'd3': data.pressure, 'd4': data.discomfort_index, 'd5': data.feeling}
+    body = {
+        'writeKey': ambient_wkey,
+        'ambient_tag': ambient_tag,
+        'd1': data.temperature,
+        'd2': data.humidity,
+        'd3': data.pressure,
+        'd4': data.discomfort_index,
+        'd5': data.feeling
+    }
     post_data_to_ambient(url, headers, body)
+
 
 def do_thermo_hygrometer(display, bme280_sensor, ambient_chid, ambient_wkey):
     """温湿度気圧情報を画面に表示する
@@ -235,9 +236,7 @@ def do_thermo_hygrometer(display, bme280_sensor, ambient_chid, ambient_wkey):
             send_data_to_ambient(ambient_url, ambient_headers, data, ambient_wkey, ambient_tag)
         time.sleep(1)
 
-#####################
-# WiFi接続が出来なかったことを画面に表示する
-#####################
+
 def display_not_connect_wifi(display):
     """WiFi接続が出来なかったことを画面に表示する
     Args:
@@ -246,20 +245,22 @@ def display_not_connect_wifi(display):
     display.fill(0)
     display.text("NotConnect WiFi", 2, 2, True)
     display.show()
-    
+
+
 #####################
 # Main Logic
 #####################
-## センサーに接続
-i2c = I2C(0, sda = SDA_PIN, scl = SCL_PIN)
-bme280 = BME280(i2c = i2c)
+# センサーに接続
+i2c = I2C(0, sda=SDA_PIN, scl=SCL_PIN)
+bme280 = BME280(i2c=i2c)
 ssd1306 = SSD1306_I2C(WIDTH, HEIGHT, i2c)
 
-## WIFIに接続
+# WIFIに接続
 ip = connect(ssd1306, config.wifi_ssid, config.wifi_pass)
 
-## WiFi接続成功したら音湿度気圧表示を行う
+# WiFi接続成功したら音湿度気圧表示を行う
 if ip is not None:
-    do_thermo_hygrometer(ssd1306, bme280, config.ambient_chid, config.ambient_wkey)
+    do_thermo_hygrometer(
+        ssd1306, bme280, config.ambient_chid, config.ambient_wkey)
 else:
     display_not_connect_wifi(ssd1306)
