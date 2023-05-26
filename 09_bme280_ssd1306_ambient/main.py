@@ -16,6 +16,18 @@ SCL_PIN = Pin(1)
 WIDTH = 128
 HEIGHT = 64
 
+# 不快指数と人が感じる感覚の関係
+THRESHOLDS = [
+    (0, 55, "Cold"),
+    (55, 60, "Chilly"),
+    (60, 65, "Don't feel"),
+    (65, 70, "Pleasant"),
+    (70, 75, "Not hot"),
+    (75, 80, "Slightly hot"),
+    (80, 85, "Hot and sweaty"),
+    (85, 1000, "Too hot")
+]
+
 #####################
 ## WiFiに接続する
 #####################
@@ -100,29 +112,18 @@ def get_discomfort_index(temp, humidity):
 
 # 不快指数から人が感じる感覚を取得する
 def get_feeling(discomfort_index):
-    """不快指数から人がかじる感覚を取得する
+    """不快指数から人が感じる感覚を取得する
     Args:
         discomfort_index: 不快指数
     Returns:
-        String: 人が感じる感覚
+        str: 人が感じる感覚
     """
-    if discomfort_index < 55:
-        feeling = "Colod"
-    elif discomfort_index < 60:
-        feeling = "Chilly"
-    elif discomfort_index < 65:
-        feeling = "Don't feel"
-    elif discomfort_index < 70:
-        feeling = "Pleasant"
-    elif discomfort_index < 75:
-        feeling = "Not hot" 
-    elif discomfort_index < 80:
-        feeling = "Slightly hot"
-    elif discomfort_index < 85:
-        feeling = "Hot and sweaty"
-    else:
-        feeling = "Too hot"
-    return feeling
+    for low, high, feeling in THRESHOLDS:
+        if discomfort_index >= low and discomfort_index < high:
+            return feeling
+
+    return "Unknown"
+
 
 #####################
 # 温湿度気圧情報を画面に表示する
