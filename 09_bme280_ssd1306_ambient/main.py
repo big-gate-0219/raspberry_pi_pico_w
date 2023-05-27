@@ -21,17 +21,56 @@ SSD1306_WIDTH = 128
 SSD1306_HEIGHT = 64
 ssd1306_display = SSD1306_I2C(SSD1306_WIDTH, SSD1306_HEIGHT, i2c)
 
-# 不快指数と人が感じる感覚の関係
-THRESHOLDS = [
-    (0, 55, "Cold"),
-    (55, 60, "Chilly"),
-    (60, 65, "Don't feel"),
-    (65, 70, "Pleasant"),
-    (70, 75, "Not hot"),
-    (75, 80, "Slightly hot"),
-    (80, 85, "Hot and sweaty"),
-    (85, 1000, "Too hot")
-]
+
+class ThermoHygrometerData:
+    """
+    温湿度気圧データを表すクラス
+    """
+
+    # 不快指数と人が感じる感覚の関係
+    THRESHOLDS = [
+        (0, 55, "Cold"),
+        (55, 60, "Chilly"),
+        (60, 65, "Don't feel"),
+        (65, 70, "Pleasant"),
+        (70, 75, "Not hot"),
+        (75, 80, "Slightly hot"),
+        (80, 85, "Hot and sweaty"),
+        (85, 1000, "Too hot")
+    ]
+    
+    
+    def __init__(self, compensated_data):
+        self.temperature = compensated_data[0] / 100
+        self.humidity = compensated_data[2] / 1024
+        self.pressure = compensated_data[1] / 25600
+        self.discomfort_index = self.__calculate_discomfort_index(self.temperature, self.humidity)
+        self.feeling = self.__get_feeling(self.discomfort_index)
+        
+    
+    def __calculate_discomfort_index(self, temperature, humidity):
+        """温度と湿度から不快指数を取得する
+        Args:
+            temperature: 温度
+            humidity: 湿度
+        Returns:
+            float: 不快指数
+        """
+        return 0.81 * temperature + 0.01 * humidity * (0.99 * temperature - 14.3) + 46.3
+    
+    
+    def __get_feeling(self, discomfort_index):
+        """不快指数から人が感じる感覚を取得する
+        Args:
+            discomfort_index: 不快指数
+        Returns:
+            str: 人が感じる感覚
+        """
+        for low, high, feeling in ThermoHygrometerData.THRESHOLDS:
+            if discomfort_index >= low and discomfort_index < high:
+                return feeling
+
+        return "Unknown"
 
 
 def connect(ssid, password):
@@ -66,61 +105,6 @@ def connect(ssid, password):
     return None
 
 
-def get_temperature(bme280_compensated_data):
-    """BME280の補正済データから気温を取得する
-    Args:
-        bme280_compensated_data: BME280で計測した補正済データ
-    Returns:
-        float: BME280の補正済データから計算した気温
-    """
-    return bme280_compensated_data[0] / 100
-
-
-def get_pressure(bme280_compensated_data):
-    """BME280の補正済データから気圧を取得する
-    Args:
-        bme280_compensated_data: BME280で計測した補正済データ
-    Returns:
-        float: BME280の補正済データから気圧した気温
-    """
-    return bme280_compensated_data[1] / 25600
-
-
-def get_humidity(bme280_compensated_data):
-    """BME280の補正済データから湿度を取得する
-    Args:
-        bme280_compensated_data: BME280で計測した補正済データ
-    Returns:
-        float: BME280の補正済データから湿度した気温
-    """
-    return bme280_compensated_data[2] / 1024
-
-
-def get_discomfort_index(temp, humidity):
-    """温度と湿度から不快指数を取得する
-    Args:
-        temp: 温度
-        humidity: 湿度
-    Returns:
-        float: 不快指数
-    """
-    return 0.81 * temp + 0.01 * humidity * (0.99 * temp - 14.3) + 46.3
-
-
-def get_feeling(discomfort_index):
-    """不快指数から人が感じる感覚を取得する
-    Args:
-        discomfort_index: 不快指数
-    Returns:
-        str: 人が感じる感覚
-    """
-    for low, high, feeling in THRESHOLDS:
-        if discomfort_index >= low and discomfort_index < high:
-            return feeling
-
-    return "Unknown"
-
-
 def display_thermo_hygrometer(data):
     """温湿度気圧情報を画面に表示する
     Args:
@@ -143,20 +127,7 @@ def display_thermo_hygrometer(data):
     ssd1306_display.text("{:.01f}hPa".format(data.pressure), 2, 30, True)
     ssd1306_display.text(data.feeling, 2, 46, True)
     ssd1306_display.show()
-
-
-class ThermoHygrometerData:
-    """
-    温湿度気圧データを表すクラス
-    """
-
-    def __init__(self, temperature, humidity, pressure, discomfort_index, feeling):
-        self.temperature = temperature
-        self.humidity = humidity
-        self.pressure = pressure
-        self.discomfort_index = discomfort_index
-        self.feeling = feeling
-
+    
 
 def get_thermo_hygrometer_data():
     """
@@ -166,13 +137,8 @@ def get_thermo_hygrometer_data():
         ThermoHygrometerData: 温湿度気圧データを表すThermoHygrometerDataオブジェクト
 
     """
-    bme280_result = bme280_sensor.read_compensated_data()
-    temperature = get_temperature(bme280_result)
-    pressure = get_pressure(bme280_result)
-    humidity = get_humidity(bme280_result)
-    discomfort_index = get_discomfort_index(temperature, humidity)
-    feeling = get_feeling(discomfort_index)
-    return ThermoHygrometerData(temperature, humidity, pressure, discomfort_index, feeling)
+    compensated_data = bme280_sensor.read_compensated_data()
+    return ThermoHygrometerData(compensated_data)
 
 
 def post_data_to_ambient(url, headers, body):
