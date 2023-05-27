@@ -8,13 +8,18 @@ from bme280 import BME280
 
 import config
 
-# I2C CONSTANT
+# I2C Settings
 SDA_PIN = Pin(0)
 SCL_PIN = Pin(1)
+i2c = I2C(0, sda=SDA_PIN, scl=SCL_PIN)
 
-# SSD1306 CONSTANT
-WIDTH = 128
-HEIGHT = 64
+# BME280 Settings
+bme280_sensor = BME280(i2c=i2c)
+
+# SSD1306 Settings
+SSD1306_WIDTH = 128
+SSD1306_HEIGHT = 64
+ssd1306_display = SSD1306_I2C(SSD1306_WIDTH, SSD1306_HEIGHT, i2c)
 
 # 不快指数と人が感じる感覚の関係
 THRESHOLDS = [
@@ -29,20 +34,19 @@ THRESHOLDS = [
 ]
 
 
-def connect(display, ssid, password):
+def connect(ssid, password):
     """WiFiに接続する
     Args:
-        display : SSD1306情報
         ssid: 接続対象WifiのSSID
         password: 接続対象Wifiのパスワード
     Returns:
         string : 接続した時のIPアドレス
         None : 接続失敗
     """
-    display.fill(0)
-    display.text("WiFi Connecting", 2, 2, True)
-    display.fill_rect(0, 15, 121, 12, True)
-    display.show()
+    ssd1306_display.fill(0)
+    ssd1306_display.text("WiFi Connecting", 2, 2, True)
+    ssd1306_display.fill_rect(0, 15, 121, 12, True)
+    ssd1306_display.show()
 
     pico_led.off()
     wlan = network.WLAN(network.STA_IF)
@@ -51,8 +55,8 @@ def connect(display, ssid, password):
 
     for i in range(60):
         pico_led.toggle()
-        display.fill_rect(120 - i - 2, 16, 2, 10, False)
-        display.show()
+        ssd1306_display.fill_rect(120 - i - 2, 16, 2, 10, False)
+        ssd1306_display.show()
         if wlan.isconnected():
             pico_led.off()
             return wlan.ifconfig()[0]
@@ -117,10 +121,9 @@ def get_feeling(discomfort_index):
     return "Unknown"
 
 
-def display_thermo_hygrometer(display, data):
+def display_thermo_hygrometer(data):
     """温湿度気圧情報を画面に表示する
     Args:
-        display : SSD1306情報
         temp: 温度
         humidity: 湿度
         pressure: 気圧
@@ -129,17 +132,17 @@ def display_thermo_hygrometer(display, data):
         Nothing
     """
     now = time.localtime()
-    display.fill(0)
-    display.text("{:02d}/{:02d} {:02d}:{:02d}:{:02d}".format(now[1], now[2], now[3], now[4], now[5]), 2, 2, True)
-    display.hline(0, 12, 128, True)
-    display.vline(70, 12, 14, True)
-    display.hline(0, 26, 128, True)
-    display.hline(0, 42, 128, True)
-    display.text("{:.01f}deg.".format(data.temperature), 2, 16, True)
-    display.text("{:.01f}%".format(data.humidity), 75, 16, True)
-    display.text("{:.01f}hPa".format(data.pressure), 2, 30, True)
-    display.text(data.feeling, 2, 46, True)
-    display.show()
+    ssd1306_display.fill(0)
+    ssd1306_display.text("{:02d}/{:02d} {:02d}:{:02d}:{:02d}".format(now[1], now[2], now[3], now[4], now[5]), 2, 2, True)
+    ssd1306_display.hline(0, 12, 128, True)
+    ssd1306_display.vline(70, 12, 14, True)
+    ssd1306_display.hline(0, 26, 128, True)
+    ssd1306_display.hline(0, 42, 128, True)
+    ssd1306_display.text("{:.01f}deg.".format(data.temperature), 2, 16, True)
+    ssd1306_display.text("{:.01f}%".format(data.humidity), 75, 16, True)
+    ssd1306_display.text("{:.01f}hPa".format(data.pressure), 2, 30, True)
+    ssd1306_display.text(data.feeling, 2, 46, True)
+    ssd1306_display.show()
 
 
 class ThermoHygrometerData:
@@ -155,12 +158,9 @@ class ThermoHygrometerData:
         self.feeling = feeling
 
 
-def get_thermo_hygrometer_data(bme280_sensor):
+def get_thermo_hygrometer_data():
     """
     温湿度気圧データを取得する関数
-
-    Args:
-        bme280_sensor (BME280): BME280センサーオブジェクト
 
     Returns:
         ThermoHygrometerData: 温湿度気圧データを表すThermoHygrometerDataオブジェクト
@@ -213,11 +213,9 @@ def send_data_to_ambient(url, headers, data, ambient_wkey, ambient_tag):
     post_data_to_ambient(url, headers, body)
 
 
-def do_thermo_hygrometer(display, bme280_sensor, ambient_chid, ambient_wkey):
+def do_thermo_hygrometer(ambient_chid, ambient_wkey):
     """温湿度気圧情報を画面に表示する
     Args:
-        display : SSD1306情報
-        bme280_sensor: bme280の接続情報
         ambient_chid: AmbientチャンネルID
         ambient_wkey: Ambientの書き込みキー
     """
@@ -228,8 +226,8 @@ def do_thermo_hygrometer(display, bme280_sensor, ambient_chid, ambient_wkey):
 
     communication_count = 0
     while True:
-        data = get_thermo_hygrometer_data(bme280_sensor)
-        display_thermo_hygrometer(display, data)
+        data = get_thermo_hygrometer_data()
+        display_thermo_hygrometer(data)
         communication_count += 1
         if communication_count > communication_interval:
             communication_count = 0
@@ -237,30 +235,22 @@ def do_thermo_hygrometer(display, bme280_sensor, ambient_chid, ambient_wkey):
         time.sleep(1)
 
 
-def display_not_connect_wifi(display):
+def display_not_connect_wifi():
     """WiFi接続が出来なかったことを画面に表示する
-    Args:
-        display : SSD1306情報
     """
-    display.fill(0)
-    display.text("NotConnect WiFi", 2, 2, True)
-    display.show()
+    ssd1306_display.fill(0)
+    ssd1306_display.text("NotConnect WiFi", 2, 2, True)
+    ssd1306_display.show()
 
 
 #####################
 # Main Logic
 #####################
-# センサーに接続
-i2c = I2C(0, sda=SDA_PIN, scl=SCL_PIN)
-bme280 = BME280(i2c=i2c)
-ssd1306 = SSD1306_I2C(WIDTH, HEIGHT, i2c)
-
 # WIFIに接続
-ip = connect(ssd1306, config.wifi_ssid, config.wifi_pass)
+ip = connect(config.wifi_ssid, config.wifi_pass)
 
 # WiFi接続成功したら音湿度気圧表示を行う
 if ip is not None:
-    do_thermo_hygrometer(
-        ssd1306, bme280, config.ambient_chid, config.ambient_wkey)
+    do_thermo_hygrometer(config.ambient_chid, config.ambient_wkey)
 else:
-    display_not_connect_wifi(ssd1306)
+    display_not_connect_wifi()
