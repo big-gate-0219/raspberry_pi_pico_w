@@ -157,50 +157,10 @@ def connect(ssid, password):
         time.sleep(1)
 
     pico_led.off()
-    return None
+    return None    
 
 
-def display_thermo_hygrometer(data):
-    """温湿度気圧情報を画面に表示する
-    Args:
-        temp: 温度
-        humidity: 湿度
-        pressure: 気圧
-        feeling: 人が感じる感覚
-    Returns:
-        Nothing
-    """
-    now = time.localtime()
-    display.display_thermo_hygrometer(now, data)
-
-
-def get_thermo_hygrometer_data():
-    """
-    温湿度気圧データを取得する関数
-
-    Returns:
-        ThermoHygrometerData: 温湿度気圧データを表すThermoHygrometerDataオブジェクト
-
-    """
-    compensated_data = bme280_sensor.read_compensated_data()
-    return ThermoHygrometerData(compensated_data)
-
-
-def post_data_to_ambient(url, headers, body):
-    """
-    Ambientにデータをポストする関数
-
-    Args:
-        url (str): Ambient APIのURL
-        headers (dict): リクエストヘッダー
-        body (dict): ポストするデータの本文
-
-    """
-    res = urequests.post(url, json=body, headers=headers)
-    res.close()
-
-
-def send_data_to_ambient(url, headers, data, ambient_wkey, ambient_tag):
+def post_data_to_ambient(url, headers, data, ambient_wkey, ambient_tag):
     """
     Ambientにデータを送信する関数
 
@@ -221,7 +181,9 @@ def send_data_to_ambient(url, headers, data, ambient_wkey, ambient_tag):
         'd4': data.discomfort_index,
         'd5': data.feeling
     }
-    post_data_to_ambient(url, headers, body)
+    
+    res = urequests.post(url, json=body, headers=headers)
+    res.close()
 
 
 def do_thermo_hygrometer(ambient_chid, ambient_wkey):
@@ -237,12 +199,14 @@ def do_thermo_hygrometer(ambient_chid, ambient_wkey):
 
     communication_count = 0
     while True:
-        data = get_thermo_hygrometer_data()
-        display_thermo_hygrometer(data)
+        now = time.localtime()
+        compensated_data = bme280_sensor.read_compensated_data()
+        data = ThermoHygrometerData(compensated_data)
+        display.display_thermo_hygrometer(now, data)
         communication_count += 1
         if communication_count > communication_interval:
             communication_count = 0
-            send_data_to_ambient(ambient_url, ambient_headers, data, ambient_wkey, ambient_tag)
+            post_data_to_ambient(ambient_url, ambient_headers, data, ambient_wkey, ambient_tag)
         time.sleep(1)
 
 
