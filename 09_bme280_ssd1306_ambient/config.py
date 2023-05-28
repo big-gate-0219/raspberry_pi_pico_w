@@ -1,8 +1,12 @@
 # WIFI Setting
-wifi_ssid = 'MY_WIFI_SSID'
-wifi_pass = 'MY_WIFI_PASSWORD'
+wifi = {
+    'ssid': 'MY_WIFI_SSID',
+    "password": 'MY_WIFI_PASSWORD'
+}
 
 
 # Ambient Setting
-ambient_chid = 'MY_AMBIENT_CHID'
-ambient_wkey = 'MY_AMBIENT_WKEY'
+ambient = {
+    'chid': 'MY_AMBIENT_CHID',
+    'wkey': 'MY_AMBIENT_WKEY'
+}

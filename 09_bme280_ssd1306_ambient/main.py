@@ -133,7 +133,7 @@ class ThermoHygrometerDisplay:
     
 display = ThermoHygrometerDisplay(ssd1306_display)
 
-def connect(ssid, password):
+def connect(wifi_config):
     """WiFiに接続する
     Args:
         ssid: 接続対象WifiのSSID
@@ -146,7 +146,7 @@ def connect(ssid, password):
     pico_led.off()
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
-    wlan.connect(ssid, password)
+    wlan.connect(wifi_config['ssid'], wifi_config['password'])
 
     for i in range(60):
         pico_led.toggle()
@@ -160,7 +160,7 @@ def connect(ssid, password):
     return None    
 
 
-def post_data_to_ambient(ambient_chid, ambient_wkey, data):
+def post_data_to_ambient(ambient_config, data):
     """
     Ambientにデータを送信する関数
 
@@ -173,10 +173,10 @@ def post_data_to_ambient(ambient_chid, ambient_wkey, data):
 
     """
     ambient_tag = 0.0
-    url = 'http://ambidata.io/api/v2/channels/{}/data'.format(ambient_chid)
+    url = 'http://ambidata.io/api/v2/channels/{}/data'.format(ambient_config['chid'])
     headers = {'Content-Type': 'application/json'}
     body = {
-        'writeKey': ambient_wkey,
+        'writeKey': ambient_config['wkey'],
         'ambient_tag': ambient_tag,
         'd1': data.temperature,
         'd2': data.humidity,
@@ -189,7 +189,7 @@ def post_data_to_ambient(ambient_chid, ambient_wkey, data):
     res.close()
 
 
-def do_thermo_hygrometer(ambient_chid, ambient_wkey):
+def do_thermo_hygrometer(ambient_config):
     """温湿度気圧情報を画面に表示する
     Args:
         ambient_chid: AmbientチャンネルID
@@ -207,7 +207,7 @@ def do_thermo_hygrometer(ambient_chid, ambient_wkey):
         if communication_count > communication_interval:
             pico_led.on()
             communication_count = 0
-            post_data_to_ambient(ambient_chid, ambient_wkey, data)
+            post_data_to_ambient(ambient_config, data)
             pico_led.off()
         time.sleep(1)
 
@@ -217,10 +217,10 @@ def do_thermo_hygrometer(ambient_chid, ambient_wkey):
 #####################
 
 # WIFIに接続
-ip = connect(config.wifi_ssid, config.wifi_pass)
+ip = connect(config.wifi)
 
 # WiFi接続成功したら音湿度気圧表示を行う
 if ip is not None:
-    do_thermo_hygrometer(config.ambient_chid, config.ambient_wkey)
+    do_thermo_hygrometer(config.ambient)
 else:
     display.display_not_connect_wifi()
