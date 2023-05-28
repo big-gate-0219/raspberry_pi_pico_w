@@ -205,8 +205,10 @@ def do_thermo_hygrometer(ambient_chid, ambient_wkey):
         display.display_thermo_hygrometer(now, data)
         communication_count += 1
         if communication_count > communication_interval:
+            pico_led.on()
             communication_count = 0
             post_data_to_ambient(ambient_url, ambient_headers, data, ambient_wkey, ambient_tag)
+            pico_led.off()
         time.sleep(1)
 
 
