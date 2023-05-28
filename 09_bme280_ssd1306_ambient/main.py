@@ -160,7 +160,7 @@ def connect(ssid, password):
     return None    
 
 
-def post_data_to_ambient(url, headers, data, ambient_wkey, ambient_tag):
+def post_data_to_ambient(ambient_chid, ambient_wkey, data):
     """
     Ambientにデータを送信する関数
 
@@ -172,6 +172,9 @@ def post_data_to_ambient(url, headers, data, ambient_wkey, ambient_tag):
         ambient_tag (float): Ambientのタグ
 
     """
+    ambient_tag = 0.0
+    url = 'http://ambidata.io/api/v2/channels/{}/data'.format(ambient_chid)
+    headers = {'Content-Type': 'application/json'}
     body = {
         'writeKey': ambient_wkey,
         'ambient_tag': ambient_tag,
@@ -192,9 +195,6 @@ def do_thermo_hygrometer(ambient_chid, ambient_wkey):
         ambient_chid: AmbientチャンネルID
         ambient_wkey: Ambientの書き込みキー
     """
-    ambient_url = 'http://ambidata.io/api/v2/channels/{}/data'.format(ambient_chid)
-    ambient_headers = {'Content-Type': 'application/json'}
-    ambient_tag = 0.0
     communication_interval = 10
 
     communication_count = 0
@@ -207,7 +207,7 @@ def do_thermo_hygrometer(ambient_chid, ambient_wkey):
         if communication_count > communication_interval:
             pico_led.on()
             communication_count = 0
-            post_data_to_ambient(ambient_url, ambient_headers, data, ambient_wkey, ambient_tag)
+            post_data_to_ambient(ambient_chid, ambient_wkey, data)
             pico_led.off()
         time.sleep(1)
 
