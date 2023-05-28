@@ -46,7 +46,7 @@ class ThermoHygrometerData:
         self.pressure = compensated_data[1] / 25600
         self.discomfort_index = self.__calculate_discomfort_index(self.temperature, self.humidity)
         self.feeling = self.__get_feeling(self.discomfort_index)
-        
+    
     
     def __calculate_discomfort_index(self, temperature, humidity):
         """温度と湿度から不快指数を取得する
@@ -72,6 +72,66 @@ class ThermoHygrometerData:
 
         return "Unknown"
 
+class ThermoHygrometerDisplay:
+    """
+    SSD1306グラフィックディスプレイ
+    """
+    
+    def __init__(self, display):
+        """
+        SSD1306_Displayクラスのコンストラクタ
+        
+        Args:
+            display(SSD1306_I2C): SSD1306情報
+        """
+        self.__display = display
+    
+    
+    def display_wifi_connecting(self):
+        """
+        WiFi接続画面の初期表示を行う。
+        """
+        self.__display.fill(0)
+        self.__display.text("WiFi Connecting", 2, 2, True)
+        self.__display.fill_rect(0, 15, 121, 12, True)
+        self.__display.show()    
+    
+    def update_wifi_connecting(self, count):
+        """
+        WiFi接続画面の更新表示を行う。
+        
+        Args:
+            count(int): WiFi接続試行回数
+        """
+        self.__display.fill_rect(120 - count - 2, 16, 2, 10, False)
+        self.__display.show()    
+    
+    def display_thermo_hygrometer(self, now, data):
+        """
+        """
+        self.__display.fill(0)
+        self.__display.text("{:02d}/{:02d} {:02d}:{:02d}:{:02d}".format(now[1], now[2], now[3], now[4], now[5]), 2, 2, True)
+        self.__display.hline(0, 12, 128, True)
+        self.__display.vline(70, 12, 14, True)
+        self.__display.hline(0, 26, 128, True)
+        self.__display.hline(0, 42, 128, True)
+        self.__display.text("{:.01f}deg.".format(data.temperature), 2, 16, True)
+        self.__display.text("{:.01f}%".format(data.humidity), 75, 16, True)
+        self.__display.text("{:.01f}hPa".format(data.pressure), 2, 30, True)
+        self.__display.text(data.feeling, 2, 46, True)
+        self.__display.show()
+    
+    
+    def display_not_connect_wifi(self):
+        """
+        WiFi接続が出来なかったことを画面に表示する
+        """
+        self.__display.fill(0)
+        self.__display.text("NotConnect WiFi", 2, 2, True)
+        self.__display.show()
+    
+    
+display = ThermoHygrometerDisplay(ssd1306_display)
 
 def connect(ssid, password):
     """WiFiに接続する
@@ -82,11 +142,7 @@ def connect(ssid, password):
         string : 接続した時のIPアドレス
         None : 接続失敗
     """
-    ssd1306_display.fill(0)
-    ssd1306_display.text("WiFi Connecting", 2, 2, True)
-    ssd1306_display.fill_rect(0, 15, 121, 12, True)
-    ssd1306_display.show()
-
+    display.display_wifi_connecting()
     pico_led.off()
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
@@ -94,8 +150,7 @@ def connect(ssid, password):
 
     for i in range(60):
         pico_led.toggle()
-        ssd1306_display.fill_rect(120 - i - 2, 16, 2, 10, False)
-        ssd1306_display.show()
+        display.update_wifi_connecting(i)
         if wlan.isconnected():
             pico_led.off()
             return wlan.ifconfig()[0]
@@ -116,18 +171,8 @@ def display_thermo_hygrometer(data):
         Nothing
     """
     now = time.localtime()
-    ssd1306_display.fill(0)
-    ssd1306_display.text("{:02d}/{:02d} {:02d}:{:02d}:{:02d}".format(now[1], now[2], now[3], now[4], now[5]), 2, 2, True)
-    ssd1306_display.hline(0, 12, 128, True)
-    ssd1306_display.vline(70, 12, 14, True)
-    ssd1306_display.hline(0, 26, 128, True)
-    ssd1306_display.hline(0, 42, 128, True)
-    ssd1306_display.text("{:.01f}deg.".format(data.temperature), 2, 16, True)
-    ssd1306_display.text("{:.01f}%".format(data.humidity), 75, 16, True)
-    ssd1306_display.text("{:.01f}hPa".format(data.pressure), 2, 30, True)
-    ssd1306_display.text(data.feeling, 2, 46, True)
-    ssd1306_display.show()
-    
+    display.display_thermo_hygrometer(now, data)
+
 
 def get_thermo_hygrometer_data():
     """
@@ -201,17 +246,10 @@ def do_thermo_hygrometer(ambient_chid, ambient_wkey):
         time.sleep(1)
 
 
-def display_not_connect_wifi():
-    """WiFi接続が出来なかったことを画面に表示する
-    """
-    ssd1306_display.fill(0)
-    ssd1306_display.text("NotConnect WiFi", 2, 2, True)
-    ssd1306_display.show()
-
-
 #####################
 # Main Logic
 #####################
+
 # WIFIに接続
 ip = connect(config.wifi_ssid, config.wifi_pass)
 
@@ -219,4 +257,4 @@ ip = connect(config.wifi_ssid, config.wifi_pass)
 if ip is not None:
     do_thermo_hygrometer(config.ambient_chid, config.ambient_wkey)
 else:
-    display_not_connect_wifi()
+    display.display_not_connect_wifi()
